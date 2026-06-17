@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro Streamer - FutbolStream Beta</title>
+<link rel="stylesheet" href="/css/style.css">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+<div class="auth-card">
+  <div class="auth-logo">
+    <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+      <circle cx="16" cy="16" r="4" fill="currentColor"/>
+    </svg>
+    <div>
+      <h1>Registro Streamer</h1>
+      <p style="font-size:.8rem;color:var(--color-text-muted);margin-top:2px">Necesitas un código de invitación</p>
+    </div>
+  </div>
+
+  <div class="role-selector">
+    <a href="/register" class="role-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Soy espectador
+    </a>
+    <a href="/register/streamer" class="role-btn active">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Soy streamer
+    </a>
+  </div>
+
+  <div class="invite-notice">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.9 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l1.14-1.14a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    ¿No tienes código? Contáctanos para solicitar acceso como streamer.
+  </div>
+
+  <form id="streamerForm">
+    <div class="form-group">
+      <label>Correo electrónico</label>
+      <input type="email" id="email" required placeholder="tu@email.com">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="password" required placeholder="Mínimo 6 caracteres">
+    </div>
+    <div class="form-group">
+      <label>Código de invitación</label>
+      <input type="text" id="invite_code" required placeholder="EKUS-XXXX" style="text-transform:uppercase;letter-spacing:.15em">
+    </div>
+    <div id="errorMsg"  class="error-msg"   style="display:none"></div>
+    <div id="successMsg" class="success-msg" style="display:none"></div>
+    <button type="submit" class="btn btn-primary btn-full">Activar cuenta streamer</button>
+  </form>
+  <p class="auth-footer">¿Ya tienes cuenta? <a href="/login">Inicia sesión</a></p>
+</div>
+
+<style>
+.role-selector { display:flex; gap:8px; margin-bottom:20px; }
+.role-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; border-radius:var(--radius-md); border:1px solid var(--color-border); color:var(--color-text-muted); font-size:.85rem; font-weight:500; transition:all 150ms; }
+.role-btn:hover { border-color:rgba(255,255,255,.2); color:var(--color-text); }
+.role-btn.active { border-color:var(--color-primary); color:var(--color-primary); background:rgba(0,200,83,.08); }
+.invite-notice { display:flex; align-items:center; gap:8px; background:rgba(0,200,83,.07); border:1px solid rgba(0,200,83,.2); border-radius:var(--radius-md); padding:10px 12px; font-size:.8rem; color:var(--color-text-muted); margin-bottom:20px; }
+</style>
+
+<script>
+document.getElementById('streamerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  btn.textContent = 'Verificando...'; btn.disabled = true;
+  const res = await fetch('/auth/register/streamer', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      email: email.value,
+      password: password.value,
+      invite_code: invite_code.value.toUpperCase()
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    successMsg.textContent = '✅ Cuenta streamer activada. Redirigiendo...';
+    successMsg.style.display = 'block';
+    setTimeout(() => location.href = '/login', 1800);
+  } else {
+    errorMsg.textContent = data.error; errorMsg.style.display = 'block';
+    btn.textContent = 'Activar cuenta streamer'; btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

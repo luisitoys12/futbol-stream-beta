@@ -10,50 +10,43 @@
 <body class="auth-page">
 <div class="auth-card">
   <div class="auth-logo">
-    <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
+    <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
       <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
       <circle cx="16" cy="16" r="4" fill="currentColor"/>
     </svg>
-    <h1>FutbolStream</h1>
-    <sup class="badge">BETA</sup>
+    <div>
+      <h1>FutbolStream</h1>
+      <sup class="badge">BETA</sup>
+    </div>
   </div>
   <form id="loginForm">
     <div class="form-group">
-      <label for="email">Correo electrónico</label>
-      <input type="email" id="email" name="email" required placeholder="tu@email.com">
+      <label>Correo electrónico</label>
+      <input type="email" id="email" required placeholder="tu@email.com">
     </div>
     <div class="form-group">
-      <label for="password">Contraseña</label>
-      <input type="password" id="password" name="password" required placeholder="••••••••">
+      <label>Contraseña</label>
+      <input type="password" id="password" required placeholder="••••••••">
     </div>
     <div id="errorMsg" class="error-msg" style="display:none"></div>
     <button type="submit" class="btn btn-primary btn-full">Entrar</button>
   </form>
-  <p class="auth-footer">¿Tienes código de invitación? <a href="/join">Regístrate aquí</a></p>
+  <p class="auth-footer">¿No tienes cuenta? <a href="/register">Regístrate gratis</a> · <a href="/register/streamer">Soy streamer</a></p>
 </div>
 <script>
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+document.getElementById('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = e.target.querySelector('button');
-  btn.textContent = 'Entrando...';
-  btn.disabled = true;
+  btn.textContent = 'Entrando...'; btn.disabled = true;
   const res = await fetch('/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: document.getElementById('email').value,
-      password: document.getElementById('password').value
-    })
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email: email.value, password: password.value })
   });
   const data = await res.json();
-  if (data.success) {
-    window.location.href = '/';
-  } else {
-    const err = document.getElementById('errorMsg');
-    err.textContent = data.error || 'Error al iniciar sesión';
-    err.style.display = 'block';
-    btn.textContent = 'Entrar';
-    btn.disabled = false;
+  if (data.success) { location.href = '/home'; }
+  else {
+    errorMsg.textContent = data.error; errorMsg.style.display = 'block';
+    btn.textContent = 'Entrar'; btn.disabled = false;
   }
 });
 </script>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crear cuenta - FutbolStream Beta</title>
+<link rel="stylesheet" href="/css/style.css">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+<div class="auth-card">
+  <div class="auth-logo">
+    <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+      <circle cx="16" cy="16" r="4" fill="currentColor"/>
+    </svg>
+    <div>
+      <h1>Crear cuenta</h1>
+      <p style="font-size:.8rem;color:var(--color-text-muted);margin-top:2px">Acceso gratuito para espectadores</p>
+    </div>
+  </div>
+
+  <!-- Selector de tipo -->
+  <div class="role-selector">
+    <a href="/register" class="role-btn active">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Soy espectador
+    </a>
+    <a href="/register/streamer" class="role-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Soy streamer
+    </a>
+  </div>
+
+  <form id="registerForm">
+    <div class="form-group">
+      <label>Correo electrónico</label>
+      <input type="email" id="email" required placeholder="tu@email.com">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="password" required placeholder="Mínimo 6 caracteres">
+    </div>
+    <div id="errorMsg"  class="error-msg"   style="display:none"></div>
+    <div id="successMsg" class="success-msg" style="display:none"></div>
+    <button type="submit" class="btn btn-primary btn-full">Crear cuenta</button>
+  </form>
+  <p class="auth-footer">¿Ya tienes cuenta? <a href="/login">Inicia sesión</a></p>
+</div>
+
+<style>
+.role-selector { display:flex; gap:8px; margin-bottom:24px; }
+.role-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; border-radius:var(--radius-md); border:1px solid var(--color-border); color:var(--color-text-muted); font-size:.85rem; font-weight:500; transition:all 150ms; }
+.role-btn:hover { border-color:rgba(255,255,255,.2); color:var(--color-text); }
+.role-btn.active { border-color:var(--color-primary); color:var(--color-primary); background:rgba(0,200,83,.08); }
+</style>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  btn.textContent = 'Creando cuenta...'; btn.disabled = true;
+  const res = await fetch('/auth/register/user', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email: email.value, password: password.value })
+  });
+  const data = await res.json();
+  if (data.success) {
+    successMsg.textContent = '✅ Cuenta creada. Redirigiendo...';
+    successMsg.style.display = 'block';
+    setTimeout(() => location.href = '/login', 1800);
+  } else {
+    errorMsg.textContent = data.error; errorMsg.style.display = 'block';
+    btn.textContent = 'Crear cuenta'; btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
