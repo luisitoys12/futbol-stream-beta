@@ -1,22 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 const { Pool } = require('pg');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 * 1024 } }); // 2GB max
 
+// Tigris usa las variables que Fly inyecta automaticamente
 const s3 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.TIGRIS_ENDPOINT,
+  region: process.env.AWS_REGION || 'auto',
+  endpoint: process.env.AWS_ENDPOINT_URL_S3 || 'https://fly.storage.tigris.dev',
   credentials: {
-    accessKeyId: process.env.TIGRIS_ACCESS_KEY,
-    secretAccessKey: process.env.TIGRIS_SECRET_KEY
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   }
 });
+
+const BUCKET = process.env.BUCKET_NAME;
 
 // Listar videos
 router.get('/', async (req, res) => {
@@ -29,7 +30,7 @@ router.post('/presign', async (req, res) => {
   const { filename, contentType } = req.body;
   const key = `videos/${uuidv4()}/${filename}`;
   const command = new PutObjectCommand({
-    Bucket: process.env.TIGRIS_BUCKET,
+    Bucket: BUCKET,
     Key: key,
     ContentType: contentType
   });
@@ -37,7 +38,7 @@ router.post('/presign', async (req, res) => {
   res.json({ uploadUrl: url, key });
 });
 
-// Registrar video en DB después del upload
+// Registrar video en DB despues del upload
 router.post('/register', async (req, res) => {
   const { title, key, duration, thumbnail } = req.body;
   const result = await pool.query(
@@ -52,7 +53,7 @@ router.get('/:id/play', async (req, res) => {
   const result = await pool.query('SELECT * FROM videos WHERE id = $1', [req.params.id]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Video no encontrado' });
   const command = new GetObjectCommand({
-    Bucket: process.env.TIGRIS_BUCKET,
+    Bucket: BUCKET,
     Key: result.rows[0].s3_key
   });
   const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
