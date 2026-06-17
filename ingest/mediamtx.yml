@@ -1,0 +1,40 @@
+# MediaMTX - Configuración para Futbol Stream Beta
+# Recibe RTMP y SRT, genera HLS para el frontend
+
+logLevel: info
+logDestinations: [stdout]
+
+# HLS output para el frontend
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigin: '*'
+hlsSegmentCount: 6
+hlsSegmentDuration: 2s
+hlsPartDuration: 200ms
+
+# RTMP input (desde OBS, vMix, etc.)
+rtmp: yes
+rtmpAddress: :1935
+
+# SRT input (encoders hardware)
+srt: yes
+srtAddress: :8890
+
+# API para saber qué streams están activos
+api: yes
+apiAddress: :9997
+
+paths:
+  '~.*':
+    # Permite cualquier stream key
+    # En producción puedes validar contra la DB con runOnPublish
+    source: publisher
+    runOnPublish: >-
+      curl -X POST http://futbol-web.internal:3000/api/channels/live
+      -H 'Content-Type: application/json'
+      -d '{"stream_key":"$RTSP_PATH","live":true}'
+    runOnPublishRestart: yes
+    runOnUnpublish: >-
+      curl -X POST http://futbol-web.internal:3000/api/channels/live
+      -H 'Content-Type: application/json'
+      -d '{"stream_key":"$RTSP_PATH","live":false}'

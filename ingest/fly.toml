@@ -1,0 +1,35 @@
+app = 'futbol-stream-ingest'
+primary_region = 'mia'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[http_service]
+  internal_port = 8888
+  force_https = false
+  auto_stop_machines = false
+  auto_start_machines = true
+
+# RTMP - requiere IP dedicada
+[[services]]
+  protocol = 'tcp'
+  internal_port = 1935
+  [[services.ports]]
+    port = 1935
+
+# SRT - UDP
+[[services]]
+  protocol = 'udp'
+  internal_port = 8890
+  [[services.ports]]
+    port = 8890
+
+# MediaMTX API (interna)
+[[services]]
+  protocol = 'tcp'
+  internal_port = 9997
+  [[services.ports]]
+    port = 9997
+
+[env]
+  PORT = '8888'
