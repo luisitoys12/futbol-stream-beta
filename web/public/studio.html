@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio - FutbolStream</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/dashboard.css">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="dash-layout">
+  <aside class="dash-sidebar">
+    <div class="dash-logo">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="4" fill="currentColor"/></svg>
+      <span>Studio</span>
+    </div>
+    <nav>
+      <a href="/home" class="dash-nav-item">&#8592; Inicio</a>
+      <a href="/studio" class="dash-nav-item active">&#127909; Mi canal</a>
+    </nav>
+  </aside>
+  <main class="dash-main">
+    <div class="dash-header"><h1>Mi Studio</h1></div>
+
+    <div id="setupSection" style="display:none">
+      <div class="dash-card">
+        <h2>Crear tu canal</h2>
+        <p style="color:var(--color-text-muted);margin-bottom:1.5rem">Aun no tienes canal. Crealo para empezar a transmitir.</p>
+        <form id="createChannelForm">
+          <div class="form-group"><label>Nombre del canal</label><input type="text" id="chName" required placeholder="Ej: Futbol MX en vivo"></div>
+          <div class="form-group"><label>Descripcion</label><textarea id="chDesc" rows="3" placeholder="De que trata tu canal..."></textarea></div>
+          <div class="form-group">
+            <label>Tipo de transmision</label>
+            <select id="chType">
+              <option value="rtmp">RTMP (OBS, vMix, XSplit)</option>
+              <option value="srt">SRT (baja latencia)</option>
+              <option value="youtube">YouTube (reemitir desde YouTube)</option>
+            </select>
+          </div>
+          <div id="createError" class="error-msg" style="display:none"></div>
+          <button type="submit" class="btn btn-primary">Crear canal</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="channelSection" style="display:none">
+      <div class="dash-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><h2 id="chTitle"></h2><span id="chSlugLabel" style="color:var(--color-text-muted);font-size:.85rem"></span></div>
+          <span id="liveStatus" class="status-badge"></span>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <h3>&#128273; Stream Key</h3>
+        <p style="color:var(--color-text-muted);font-size:.85rem;margin-bottom:1rem">Pegala en OBS > Configuracion > Emisiones > Clave de stream. Nunca la compartas.</p>
+        <div class="key-box">
+          <input type="password" id="streamKeyInput" readonly>
+          <button class="btn btn-ghost" id="toggleKeyBtn" onclick="toggleKey()">Mostrar</button>
+          <button class="btn btn-ghost" onclick="copyKey(this)">Copiar</button>
+        </div>
+        <div class="key-warning">
+          Si crees que tu key fue comprometida, rotala. El stream activo se cortara.
+          <button class="btn-rotate" id="rotateBtn" onclick="rotateKey()">&#128260; Rotar key</button>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <h3>&#128225; Configuracion OBS</h3>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.75rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px">Servidor RTMP</label>
+          <div id="rtmpUrl" style="font-family:monospace;font-size:.85rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px 12px"></div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:.75rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px">Servidor SRT</label>
+          <div id="srtUrl" style="font-family:monospace;font-size:.85rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px 12px"></div>
+        </div>
+        <div style="background:rgba(0,200,83,.05);border:1px solid rgba(0,200,83,.15);border-radius:var(--radius-md);padding:14px 16px;font-size:.85rem">
+          <p><strong>Pasos en OBS:</strong></p>
+          <ol style="margin-left:1.2rem;margin-top:8px;line-height:2">
+            <li>Configuracion &rarr; Emisiones</li>
+            <li>Servicio: <strong>Personalizado</strong></li>
+            <li>Servidor: URL RTMP de arriba</li>
+            <li>Clave de stream: tu Stream Key</li>
+            <li>&#9989; Aplicar y empieza a transmitir</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <h3>&#9998; Editar canal</h3>
+        <form id="editChannelForm">
+          <div class="form-group"><label>Nombre</label><input type="text" id="editName"></div>
+          <div class="form-group"><label>Descripcion</label><textarea id="editDesc" rows="3"></textarea></div>
+          <div class="form-group"><label>Thumbnail URL</label><input type="url" id="editThumb" placeholder="https://..."></div>
+          <div id="editError" class="error-msg" style="display:none"></div>
+          <div id="editSuccess" class="success-msg" style="display:none"></div>
+          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<style>
+.status-badge{padding:4px 12px;border-radius:999px;font-size:.75rem;font-weight:700}
+.status-live{background:rgba(244,67,54,.15);color:#f44336}
+.status-offline{background:rgba(255,255,255,.06);color:var(--color-text-muted)}
+.key-box{display:flex;gap:8px;align-items:center;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px}
+.key-box input{flex:1;background:none;border:none;outline:none;font-family:monospace;font-size:.9rem;color:var(--color-text)}
+.key-warning{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--color-text-muted);flex-wrap:wrap}
+.btn-rotate{margin-left:auto;background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);color:#f44336;padding:5px 12px;border-radius:var(--radius-md);font-size:.8rem;cursor:pointer;transition:background 150ms}
+.btn-rotate:hover{background:rgba(244,67,54,.2)}
+</style>
+
+<script>
+let channel=null;
+async function init(){
+  const res=await fetch('/api/studio/channel');
+  channel=await res.json();
+  if(!channel)document.getElementById('setupSection').style.display='block';
+  else{document.getElementById('channelSection').style.display='block';loadChannel();}
+}
+function loadChannel(){
+  document.getElementById('chTitle').textContent=channel.name;
+  document.getElementById('chSlugLabel').textContent=window.location.host+'/watch/'+channel.slug;
+  document.getElementById('streamKeyInput').value=channel.stream_key;
+  const live=channel.is_live;
+  document.getElementById('liveStatus').textContent=live?'EN VIVO':'OFFLINE';
+  document.getElementById('liveStatus').className='status-badge '+(live?'status-live':'status-offline');
+  document.getElementById('rtmpUrl').textContent='rtmp://futbol-stream-ingest-floral-brook-5015.fly.dev/live';
+  document.getElementById('srtUrl').textContent='srt://futbol-stream-ingest-floral-brook-5015.fly.dev:8890';
+  document.getElementById('editName').value=channel.name;
+  document.getElementById('editDesc').value=channel.description||'';
+  document.getElementById('editThumb').value=channel.thumbnail||'';
+}
+function toggleKey(){
+  const inp=document.getElementById('streamKeyInput');
+  const btn=document.getElementById('toggleKeyBtn');
+  inp.type=inp.type==='password'?'text':'password';
+  btn.textContent=inp.type==='password'?'Mostrar':'Ocultar';
+}
+function copyKey(btn){
+  navigator.clipboard.writeText(document.getElementById('streamKeyInput').value);
+  btn.textContent='Copiado';
+  setTimeout(()=>btn.textContent='Copiar',2000);
+}
+async function rotateKey(){
+  if(!confirm('Rotar stream key? La transmision activa se interrumpira.'))return;
+  const btn=document.getElementById('rotateBtn');
+  btn.textContent='Rotando...';
+  const res=await fetch('/api/studio/channel/rotate-key',{method:'POST'});
+  const data=await res.json();
+  if(data.success){
+    channel.stream_key=data.stream_key;
+    document.getElementById('streamKeyInput').value=data.stream_key;
+    document.getElementById('streamKeyInput').type='text';
+    document.getElementById('toggleKeyBtn').textContent='Ocultar';
+    btn.textContent='Key rotada';
+    setTimeout(()=>btn.textContent='Rotar key',3000);
+  }
+}
+document.getElementById('createChannelForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=e.target.querySelector('button[type=submit]');
+  btn.disabled=true;btn.textContent='Creando...';
+  const res=await fetch('/api/studio/channel',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:document.getElementById('chName').value,description:document.getElementById('chDesc').value,type:document.getElementById('chType').value})});
+  const data=await res.json();
+  if(data.id){channel=data;document.getElementById('setupSection').style.display='none';document.getElementById('channelSection').style.display='block';loadChannel();}
+  else{document.getElementById('createError').textContent=data.error;document.getElementById('createError').style.display='block';btn.disabled=false;btn.textContent='Crear canal';}
+});
+document.getElementById('editChannelForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const res=await fetch('/api/studio/channel',{method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:document.getElementById('editName').value,description:document.getElementById('editDesc').value,thumbnail:document.getElementById('editThumb').value})});
+  const data=await res.json();
+  if(data.id){document.getElementById('editSuccess').textContent='Guardado';document.getElementById('editSuccess').style.display='block';setTimeout(()=>document.getElementById('editSuccess').style.display='none',3000);}
+  else{document.getElementById('editError').textContent=data.error;document.getElementById('editError').style.display='block';}
+});
+init();
+</script>
+</body>
+</html>
