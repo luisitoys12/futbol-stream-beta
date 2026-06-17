@@ -12,30 +12,31 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes
+// Routes API
 app.use('/auth', require('./routes/auth'));
 app.use('/api/channels', require('./routes/channels'));
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/admin', require('./routes/admin'));
 
-// Middleware beta - protege todas las rutas /watch
-app.use('/watch', (req, res, next) => {
+// Auth middleware
+function requireAuth(req, res, next) {
   const token = req.cookies.session;
   if (!token) return res.redirect('/login');
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    if (!user.is_beta) return res.status(403).sendFile(path.join(__dirname, 'public/403.html'));
-    req.user = user;
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    if (!req.user.is_beta) return res.status(403).sendFile(path.join(__dirname, 'public/403.html'));
     next();
-  } catch {
-    res.redirect('/login');
-  }
-});
+  } catch { res.redirect('/login'); }
+}
 
-// Páginas principales
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
+// Páginas públicas
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public/login.html')));
-app.get('/watch/:channelSlug', (req, res) => res.sendFile(path.join(__dirname, 'public/watch.html')));
-app.get('/join', (req, res) => res.sendFile(path.join(__dirname, 'public/join.html')));
+app.get('/join',  (req, res) => res.sendFile(path.join(__dirname, 'public/join.html')));
 
-app.listen(PORT, () => console.log(`Futbol Stream Beta corriendo en puerto ${PORT}`));
+// Páginas protegidas
+app.get('/',               requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public/home.html')));
+app.get('/home',           requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public/home.html')));
+app.get('/watch/:slug',    requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public/watch.html')));
+app.get('/admin',          requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public/admin.html')));
+
+app.listen(PORT, () => console.log(`FutbolStream corriendo en puerto ${PORT}`));

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FutbolStream Beta</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/home.css">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-label="FutbolStream">
+      <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+      <circle cx="16" cy="16" r="4" fill="currentColor"/>
+    </svg>
+    <span class="sidebar-brand">FutbolStream</span>
+    <sup class="badge">BETA</sup>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="/home" class="nav-item active">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Inicio
+    </a>
+    <a href="#seguidos" class="nav-item">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Seguidos
+    </a>
+  </nav>
+
+  <div class="sidebar-section">
+    <p class="sidebar-label">EN VIVO</p>
+    <div id="liveList"><div class="sidebar-skeleton"></div><div class="sidebar-skeleton"></div></div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="user-chip" id="userChip"></div>
+    <form action="/auth/logout" method="POST">
+      <button type="submit" class="btn-logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Salir
+      </button>
+    </form>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main-wrap">
+  <header class="topbar">
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Buscar canales..." id="searchInput">
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- BANNER HERO -->
+    <section class="hero-banner" id="heroBanner" style="display:none">
+      <div class="hero-overlay"></div>
+      <div class="hero-info">
+        <span class="live-badge">EN VIVO</span>
+        <h1 id="heroTitle"></h1>
+        <p id="heroDesc"></p>
+        <a id="heroBtn" href="#" class="btn btn-primary btn-lg">Ver ahora</a>
+      </div>
+    </section>
+
+    <!-- CANALES EN VIVO -->
+    <section class="section">
+      <h2 class="section-title">🔴 En vivo ahora</h2>
+      <div class="channels-grid" id="liveGrid">
+        <div class="channel-card skeleton-card"></div>
+        <div class="channel-card skeleton-card"></div>
+        <div class="channel-card skeleton-card"></div>
+      </div>
+      <p class="empty-msg" id="liveEmpty" style="display:none">No hay transmisiones en vivo ahora mismo.</p>
+    </section>
+
+    <!-- TODOS LOS CANALES -->
+    <section class="section">
+      <h2 class="section-title">📺 Todos los canales</h2>
+      <div class="channels-grid" id="allGrid">
+        <div class="channel-card skeleton-card"></div>
+        <div class="channel-card skeleton-card"></div>
+        <div class="channel-card skeleton-card"></div>
+      </div>
+      <p class="empty-msg" id="allEmpty" style="display:none">Aún no hay canales disponibles.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+// Sidebar toggle
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+
+async function init() {
+  // Cargar perfil
+  try {
+    const me = await fetch('/api/admin/me').then(r => r.json());
+    document.getElementById('userChip').innerHTML = `
+      <div class="avatar">${me.email[0].toUpperCase()}</div>
+      <span>${me.email.split('@')[0]}</span>
+    `;
+  } catch(e) {}
+
+  // Cargar canales
+  let channels = [];
+  try {
+    channels = await fetch('/api/channels').then(r => r.json());
+  } catch(e) {}
+
+  const live = channels.filter(c => c.is_live);
+  const all  = channels;
+
+  // Hero banner con primer canal en vivo
+  if (live.length) {
+    const ch = live[0];
+    const hero = document.getElementById('heroBanner');
+    hero.style.display = 'flex';
+    if (ch.thumbnail) hero.style.backgroundImage = `url(${ch.thumbnail})`;
+    document.getElementById('heroTitle').textContent = ch.name;
+    document.getElementById('heroDesc').textContent  = ch.description || '';
+    document.getElementById('heroBtn').href = `/watch/${ch.slug}`;
+  }
+
+  // Sidebar live list
+  const liveList = document.getElementById('liveList');
+  liveList.innerHTML = live.length
+    ? live.map(c => `<a href="/watch/${c.slug}" class="sidebar-channel"><span class="dot-live"></span>${c.name}</a>`).join('')
+    : '<p class="sidebar-empty">Sin señal en vivo</p>';
+
+  // Grid EN VIVO
+  renderGrid('liveGrid', 'liveEmpty', live);
+
+  // Grid TODOS
+  renderGrid('allGrid', 'allEmpty', all);
+}
+
+function renderGrid(gridId, emptyId, channels) {
+  const grid = document.getElementById(gridId);
+  const empty = document.getElementById(emptyId);
+  if (!channels.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  grid.innerHTML = channels.map(ch => `
+    <a href="/watch/${ch.slug}" class="channel-card">
+      <div class="channel-thumb">
+        ${ch.is_live ? '<span class="live-badge">EN VIVO</span>' : ''}
+        ${ch.thumbnail
+          ? `<img src="${ch.thumbnail}" alt="${ch.name}" loading="lazy" width="320" height="180">`
+          : `<div class="no-thumb">⚽</div>`}
+      </div>
+      <div class="channel-info">
+        <h3>${ch.name}</h3>
+        <span class="channel-meta">${ch.type.toUpperCase()}${ch.viewer_count ? ` · ${ch.viewer_count} viendo` : ''}</span>
+      </div>
+    </a>
+  `).join('');
+}
+
+init();
+
+// Search filter
+document.getElementById('searchInput').addEventListener('input', async (e) => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('.channel-card').forEach(card => {
+    const name = card.querySelector('h3')?.textContent.toLowerCase() || '';
+    card.style.display = name.includes(q) ? '' : 'none';
+  });
+});
+</script>
+</body>
+</html>
