@@ -3,85 +3,214 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ver canal - FutbolStream Beta</title>
+<title>Ver - FutbolStream</title>
 <link rel="stylesheet" href="/css/style.css">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/video.js@8/dist/video-js.min.css">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Satoshi',sans-serif;background:var(--color-bg);color:var(--color-text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+a{text-decoration:none;color:inherit}
+
+/* Nav */
+.nav{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;background:var(--color-surface);border-bottom:1px solid var(--color-border);flex-shrink:0}
+.nav-back{color:var(--color-text-muted);font-size:.85rem;display:flex;align-items:center;gap:6px}
+.nav-back:hover{color:var(--color-text)}
+.nav-title{font-weight:700;font-size:.95rem}
+.live-dot{width:8px;height:8px;background:#f44336;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite}
+.viewers{font-size:.8rem;color:var(--color-text-muted);margin-left:auto}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Layout */
+.watch-layout{display:flex;flex:1;overflow:hidden}
+
+/* Video */
+.video-col{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.video-wrap{position:relative;background:#000;flex:1;min-height:0}
+#player{width:100%;height:100%;object-fit:contain}
+.offline-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--color-text-muted)}
+.offline-screen .icon{font-size:3rem}
+.channel-info{padding:14px 20px;border-top:1px solid var(--color-border);background:var(--color-surface)}
+.channel-info h1{font-size:1rem;font-weight:700;margin-bottom:2px}
+.channel-info p{font-size:.82rem;color:var(--color-text-muted)}
+
+/* Chat */
+.chat-col{width:320px;display:flex;flex-direction:column;border-left:1px solid var(--color-border);background:var(--color-surface);flex-shrink:0}
+.chat-header{padding:12px 16px;border-bottom:1px solid var(--color-border);font-size:.85rem;font-weight:700}
+.chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.chat-messages::-webkit-scrollbar{width:4px}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--color-border);border-radius:2px}
+.chat-msg{font-size:.83rem;line-height:1.5;word-break:break-word}
+.chat-msg .user{font-weight:700;color:var(--color-primary);margin-right:6px}
+.chat-msg .time{font-size:.7rem;color:var(--color-text-faint);margin-left:4px}
+.chat-input-wrap{padding:10px 12px;border-top:1px solid var(--color-border);display:flex;gap:8px}
+.chat-input-wrap input{flex:1;background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;padding:8px 12px;color:var(--color-text);font-size:.85rem;font-family:inherit;outline:none}
+.chat-input-wrap input:focus{border-color:var(--color-primary)}
+.chat-input-wrap button{background:var(--color-primary);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.chat-input-wrap button:hover{opacity:.9}
+.chat-disabled{padding:16px;text-align:center;font-size:.8rem;color:var(--color-text-muted)}
+
+@media(max-width:768px){
+  .watch-layout{flex-direction:column}
+  .chat-col{width:100%;height:280px;border-left:none;border-top:1px solid var(--color-border)}
+  .video-col{flex:none;height:56vw}
+}
+</style>
 </head>
 <body>
-<nav class="navbar">
-  <div class="nav-brand">
-    <a href="/">
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
-        <circle cx="16" cy="16" r="4" fill="currentColor"/>
-      </svg>
-    </a>
-    <span id="channelName">Cargando...</span>
-  </div>
-  <div class="nav-links">
-    <form action="/auth/logout" method="POST">
-      <button type="submit" class="btn btn-ghost">Salir</button>
-    </form>
-  </div>
+
+<nav class="nav">
+  <a href="/home" class="nav-back">&#8592; Inicio</a>
+  <span class="nav-title" id="navTitle">Cargando...</span>
+  <span id="liveIndicator" style="display:none"><span class="live-dot"></span></span>
+  <span class="viewers" id="viewersCount"></span>
 </nav>
 
-<main class="watch-layout">
-  <div class="player-wrap">
-    <div id="playerContainer">
-      <video id="hlsPlayer" class="video-js vjs-theme-fantasy vjs-big-play-centered" controls preload="auto" style="width:100%;height:100%"></video>
+<div class="watch-layout">
+  <!-- Video -->
+  <div class="video-col">
+    <div class="video-wrap">
+      <video id="player" controls playsinline></video>
+      <div class="offline-screen" id="offlineScreen" style="display:none">
+        <div class="icon">📡</div>
+        <div>Este canal no esta en vivo ahora mismo</div>
+        <div style="font-size:.8rem">Vuelve mas tarde</div>
+      </div>
+    </div>
+    <div class="channel-info">
+      <h1 id="channelName">-</h1>
+      <p id="channelDesc"></p>
     </div>
   </div>
-  <div class="channel-meta" id="channelMeta">
-    <div class="skeleton" style="height:24px;width:60%;margin-bottom:8px"></div>
-    <div class="skeleton" style="height:16px;width:40%"></div>
+
+  <!-- Chat -->
+  <div class="chat-col">
+    <div class="chat-header">Chat en vivo</div>
+    <div class="chat-messages" id="chatMessages">
+      <div style="text-align:center;font-size:.8rem;color:var(--color-text-faint);padding:20px 0">Conectando al chat...</div>
+    </div>
+    <div class="chat-input-wrap" id="chatInputWrap">
+      <input type="text" id="chatInput" placeholder="Escribe un mensaje..." maxlength="300">
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
   </div>
-</main>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/video.js@8/dist/video.min.js"></script>
 <script>
-const slug = location.pathname.split('/').pop();
-const INGEST = '';
+const slug = location.pathname.split('/watch/')[1];
+let channel = null;
+let socket  = null;
 
-async function loadChannel() {
-  const res = await fetch(`/api/channels/${slug}`);
-  if (!res.ok) { document.body.innerHTML = '<div class="error-full">Canal no encontrado</div>'; return; }
-  const ch = await res.json();
-  document.title = `${ch.name} - FutbolStream Beta`;
-  document.getElementById('channelName').textContent = ch.name;
-  document.getElementById('channelMeta').innerHTML = `
-    <h2>${ch.name} ${ch.is_live ? '<span class="live-badge">EN VIVO</span>' : ''}</h2>
-    <p>${ch.description || ''}</p>
-  `;
+async function init() {
+  // Cargar canal
+  const res = await fetch('/api/channels/' + slug);
+  if (!res.ok) { location.href = '/home'; return; }
+  channel = await res.json();
 
-  const player = videojs('hlsPlayer', {
-    fluid: true,
-    responsive: true,
-    playbackRates: [0.5, 1, 1.5, 2]
-  });
+  document.title = channel.name + ' - FutbolStream';
+  document.getElementById('navTitle').textContent   = channel.name;
+  document.getElementById('channelName').textContent = channel.name;
+  document.getElementById('channelDesc').textContent = channel.description || '';
 
-  if (ch.type === 'youtube') {
-    // Embed YouTube nocookie
-    document.getElementById('playerContainer').innerHTML = `
-      <iframe
-        src="https://www.youtube-nocookie.com/embed/${ch.youtube_id}?autoplay=1&rel=0&modestbranding=1"
-        style="width:100%;aspect-ratio:16/9;border:none"
-        allow="autoplay; fullscreen"
-        allowfullscreen>
-      </iframe>`;
-  } else if (ch.type === 'rtmp' || ch.type === 'srt') {
-    // HLS desde MediaMTX
-    const hlsUrl = `/hls/${ch.stream_key || slug}/index.m3u8`;
-    player.src({ type: 'application/x-mpegURL', src: hlsUrl });
-    player.play();
-  } else if (ch.type === 'video') {
-    // Video subido - obtener URL firmada
-    const vRes = await fetch(`/api/videos/${ch.id}/play`);
-    const { url } = await vRes.json();
-    player.src({ type: 'video/mp4', src: url });
+  if (channel.is_live) {
+    document.getElementById('liveIndicator').style.display = 'inline';
+    loadPlayer();
+  } else {
+    document.getElementById('offlineScreen').style.display = 'flex';
+    document.getElementById('player').style.display = 'none';
+  }
+
+  initSocket();
+}
+
+function loadPlayer() {
+  const video = document.getElementById('player');
+  const ingest = 'futbol-stream-ingest-floral-brook-5015.fly.dev';
+  const hlsUrl = `https://${ingest}/hls/${channel.stream_key}/index.m3u8`;
+
+  if (channel.type === 'youtube' && channel.youtube_id) {
+    // Reemplazar video con iframe de YouTube
+    const wrap = document.querySelector('.video-wrap');
+    wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${channel.youtube_id}?autoplay=1" allow="autoplay;encrypted-media" allowfullscreen style="width:100%;height:100%;border:none"></iframe>`;
+    return;
+  }
+
+  if (Hls.isSupported()) {
+    const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+    hls.loadSource(hlsUrl);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
+    hls.on(Hls.Events.ERROR, (e, data) => {
+      if (data.fatal) {
+        document.getElementById('offlineScreen').style.display = 'flex';
+        video.style.display = 'none';
+      }
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = hlsUrl;
+    video.play().catch(()=>{});
   }
 }
-loadChannel();
+
+function initSocket() {
+  socket = io();
+
+  socket.on('connect', () => {
+    socket.emit('join-channel', slug);
+  });
+
+  socket.on('chat-history', (msgs) => {
+    const box = document.getElementById('chatMessages');
+    box.innerHTML = '';
+    msgs.forEach(addMessage);
+    box.scrollTop = box.scrollHeight;
+  });
+
+  socket.on('chat-message', (msg) => {
+    addMessage(msg);
+    const box = document.getElementById('chatMessages');
+    box.scrollTop = box.scrollHeight;
+  });
+
+  socket.on('viewer-count', (count) => {
+    document.getElementById('viewersCount').textContent = count + ' viendo';
+  });
+
+  socket.on('connect_error', () => {
+    document.getElementById('chatInputWrap').innerHTML = '<div class="chat-disabled">Chat no disponible</div>';
+  });
+}
+
+function addMessage(msg) {
+  const box = document.getElementById('chatMessages');
+  const t = new Date(msg.created_at);
+  const time = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="user">${escHtml(msg.username)}</span>${escHtml(msg.message)}<span class="time">${time}</span>`;
+  box.appendChild(div);
+  // Limitar a 200 mensajes en DOM
+  while (box.children.length > 200) box.removeChild(box.firstChild);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const msg   = input.value.trim();
+  if (!msg || !socket) return;
+  socket.emit('chat-message', { slug, message: msg });
+  input.value = '';
+}
+
+document.getElementById('chatInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+init();
 </script>
 </body>
 </html>
