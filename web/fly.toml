@@ -19,6 +19,7 @@ primary_region = 'mia'
 [env]
   NODE_ENV = 'production'
   PORT = '3000'
+  # DATABASE_URL se inyecta automaticamente por Fly al hacer postgres attach
 
 [[vm]]
   memory = '512mb'
